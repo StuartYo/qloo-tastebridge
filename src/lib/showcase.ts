@@ -30,7 +30,7 @@ let inflight: Promise<ShowcaseBundle | null> | undefined;
 
 async function fetchBundle(): Promise<ShowcaseBundle | null> {
   const file = SHOWCASE_FILE();
-  // Not traced into the server bundle: the bundle must never ship inside the deployment by accident.
+  // Read from .data/showcase.json; next.config.ts traces it into the private Vercel deployment (never the public repo).
   try { if (existsSync(/*turbopackIgnore: true*/ file)) return JSON.parse(readFileSync(/*turbopackIgnore: true*/ file, "utf8")); } catch { /* fall through */ }
   const url = process.env.SHOWCASE_BLOB_URL;
   const token = process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL_OIDC_TOKEN;
