@@ -6,7 +6,7 @@ import { createQlooClient } from "@/lib/qloo";
 import { loadShowcase } from "@/lib/showcase";
 import { modelLabel } from "@/components/RunMeta";
 
-export const metadata: Metadata = { title: "Evaluation — TasteBridge" };
+export const metadata: Metadata = { title: "Evaluation | TasteBridge" };
 
 const Mark = ({ ok }: { ok: boolean | null }) => (ok === null ? <Minus className="size-4 text-stone-400" aria-label="not applicable" /> : ok ? <Check className="size-4 text-emerald-700" aria-label="pass" /> : <X className="size-4 text-red-700" aria-label="fail" />);
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -63,12 +63,12 @@ export default async function EvalPage() {
             <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
               <dt className="text-stone-500">Expected</dt><dd>{r.expectedSufficient ? "enough data" : "should refuse"}</dd>
               <dt className="text-stone-500">Coverage</dt><dd>{r.sufficiency}</dd>
-              <dt className="text-stone-500">Top city (Qloo)</dt><dd>{r.topCity ?? "—"}</dd>
-              <dt className="text-stone-500">City in advice</dt><dd className="flex items-center gap-1">{r.recommendedCity ?? "—"}{r.recommendedCity && <Mark ok={r.cityAgrees} />}</dd>
+              <dt className="text-stone-500">Top city (Qloo)</dt><dd>{r.topCity ?? "n/a"}</dd>
+              <dt className="text-stone-500">City in advice</dt><dd className="flex items-center gap-1">{r.recommendedCity ?? "n/a"}{r.recommendedCity && <Mark ok={r.cityAgrees} />}</dd>
               <dt className="text-stone-500">Cites evidence</dt><dd className="flex items-center gap-1"><Mark ok={r.cited} />{pct(r.citationCoverage)}</dd>
               <dt className="text-stone-500">Honest</dt><dd><Mark ok={r.honest} /></dd>
               <dt className="text-stone-500">Qloo calls</dt><dd>{r.calls} ({r.agentCalls} agent / {r.coverageCalls} auto)</dd>
-              {live && <><dt className="text-stone-500">Claude cost</dt><dd>{r.usd !== null ? `$${r.usd.toFixed(3)}` : "—"}</dd></>}
+              {live && <><dt className="text-stone-500">Claude cost</dt><dd>{r.usd !== null ? `$${r.usd.toFixed(3)}` : "n/a"}</dd></>}
             </dl>
           </li>
         ))}
@@ -87,13 +87,13 @@ export default async function EvalPage() {
                 <td className="p-3"><Link href={`/?s=${r.id}`} className="font-medium hover:text-accent hover:underline">{r.name}</Link><div className="text-xs text-stone-500">{r.category}</div></td>
                 <td className="p-3">{r.expectedSufficient ? "enough data" : "should refuse"}</td>
                 <td className="p-3">{r.sufficiency}</td>
-                <td className="p-3">{r.topCity ?? "—"}</td>
-                <td className="p-3">{r.recommendedCity ? <span className="flex items-center gap-1">{r.recommendedCity} <Mark ok={r.cityAgrees} /></span> : "—"}</td>
+                <td className="p-3">{r.topCity ?? "n/a"}</td>
+                <td className="p-3">{r.recommendedCity ? <span className="flex items-center gap-1">{r.recommendedCity} <Mark ok={r.cityAgrees} /></span> : "n/a"}</td>
                 <td className="p-3"><span className="flex items-center gap-1"><Mark ok={r.cited} /><span className="text-xs tabular-nums text-stone-500">{pct(r.citationCoverage)}</span></span></td>
                 <td className="p-3"><Mark ok={r.honest} /></td>
                 <td className="p-3"><Mark ok={r.cityOk} /></td>
                 <td className="p-3 tabular-nums">{r.calls} <span className="text-xs text-stone-500">({r.agentCalls} / {r.coverageCalls})</span></td>
-                {live && <td className="p-3 tabular-nums text-xs">{r.usd !== null ? `$${r.usd.toFixed(3)}` : "—"}</td>}
+                {live && <td className="p-3 tabular-nums text-xs">{r.usd !== null ? `$${r.usd.toFixed(3)}` : "n/a"}</td>}
               </tr>
             ))}
           </tbody>

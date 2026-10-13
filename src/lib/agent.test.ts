@@ -152,3 +152,44 @@ describe("guards", () => {
     expect(whys.some(w => w.includes("Invented"))).toBe(false);
   });
 });
+
+describe("confidence rules (code, not the model)", () => {
+  const venue = (id: string, popularity: number) => ({ id, name: id, kind: "place", affinity: 0.8, popularity, tags: [] });
+  function ctxWith(scores: number[]) {
+    const ctx = new Ctx(qloo());
+    ctx.seeds = [venue("s1", 0.9), venue("s2", 0.9), venue("s3", 0.9)];
+    ctx.neighbors = { artist: Array.from({ length: 8 }, (_, i) => venue(`a${i}`, 0.9)) };
+    scores.forEach((score, i) => {
+      const id = ctx.record("city_fit", "/v2/insights", {}, Array.from({ length: 10 }, (_, j) => venue(`c${i}${j}`, 0.9)), `city ${i}`);
+      ctx.cities.push({ name: `C${i}`, lat: 0, lon: 0, score, count: 10, evidence: id });
+    });
+    ctx.record("audience_profile", "/v2/insights", {}, [], "aud", 12);
+    return ctx;
+  }
+  test("a close-call city is at most medium; a clear lead can be high", () => {
+    const close = ctxWith([0.9, 0.88]);
+    expect(finalizeRecs(close, [{ title: "Enter C0 first", detail: "C0 0.9 vs C1 0.88.", evidence: ["E1", "E2", "E3"] }])[0]).toMatchObject({ confidence: "medium" });
+    const clear = ctxWith([0.9, 0.7]);
+    expect(finalizeRecs(clear, [{ title: "Enter C0 first", detail: "C0 0.9 vs C1 0.7.", evidence: ["E1", "E2", "E3"] }])[0].confidence).toBe("high");
+  });
+  test("low-popularity venues drop one level; hedged wording caps the level", async () => {
+    const { textCeiling, softenClaims } = await import("./agent");
+    const ctx = ctxWith([0.9, 0.7]);
+    const v = ctx.record("city_places", "/v2/insights", {}, Array.from({ length: 10 }, (_, j) => venue(`v${j}`, 0.2)), "venues");
+    const [r] = finalizeRecs(ctx, [{ title: "Pop up near V0", detail: "Top venues.", evidence: [v, "E3"] }]);
+    expect(r.confidence).toBe("medium");
+    expect(r.confidenceNote).toMatch(/low Qloo popularity/);
+    const [h] = finalizeRecs(ctx, [{ title: "Enter C0", detail: "The evidence is moderate.", evidence: ["E1", "E2", "E3"] }]);
+    expect(h.confidence).toBe("medium");
+    expect(textCeiling("This is my own suggestion and has no Qloo support.")).toBe("low");
+    expect(softenClaims("Strong evidence confirms a clear winner.")).toBe("evidence suggests a leader.");
+  });
+});
+
+test("Taste Bridge hides brand links that share no tags with the favourites", async () => {
+  const r = await runBridgeAgent("周杰倫", { qloo: qloo(), llm: null });
+  const brands = r.picks.brand ?? [];
+  const seedTags = new Set(r.seeds.flatMap(s => s.tags.map(t => t.name)));
+  expect(brands.every(p => p.entity.tags.some(t => seedTags.has(t.name)))).toBe(true);
+  expect(Array.isArray(r.hiddenBrands)).toBe(true);
+});

@@ -44,6 +44,8 @@ export interface Recommendation {
   detail: string;
   evidence: string[];
   confidence: Confidence;
+  /** Why code lowered the level below what the evidence counts alone would give. */
+  confidenceNote?: string;
 }
 
 export interface AudienceProfile {
@@ -75,6 +77,10 @@ export interface BrandReport {
   audience: AudienceProfile | null;
   neighbors: Partial<Record<EntityKind, Entity[]>>;
   cities: CityFit[];
+  /** "category": cities scored on same-category venues; "overall": on all places (general taste affinity). */
+  cityScope?: "category" | "overall";
+  /** Qloo category tag names used for category-specific city scoring. */
+  cityCategory?: string[];
   topCity: CityFit | null;
   places: Entity[];
   /** City the places and heatmap belong to (the agent may look at more than the top-ranked city). */
@@ -104,6 +110,8 @@ export interface BridgeReport {
   unmatched: string[];
   picks: Partial<Record<EntityKind, BridgePick[]>>;
   places: BridgePick[];
+  /** Brand links Qloo returned that share no tags with the favourites (hidden from the picks). */
+  hiddenBrands?: string[];
   evidence: Evidence[];
   /** Who wrote the "why you'd like it" lines. */
   explanations: "claude" | "rules";

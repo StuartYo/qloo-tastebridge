@@ -31,7 +31,7 @@ export function EvidencePanel({ evidence, highlight }: { evidence: Evidence[]; h
             <details className="mt-1">
               <summary className="cursor-pointer text-xs text-stone-500">Parameters{e.items.length ? ` and top ${Math.min(5, e.items.length)} results` : ""}</summary>
               <code className="mt-1 block break-all rounded bg-stone-50 p-2 text-[11px] text-stone-600">{toQuery(e.params)}</code>
-              {e.items.length > 0 && <ul className="mt-1 text-xs text-stone-600">{e.items.slice(0, 5).map(x => <li key={x.id}>{x.name}{x.affinity !== undefined ? ` — affinity ${x.affinity.toFixed(2)}` : ""}{x.tags.length ? ` · ${x.tags.slice(0, 3).map(t => t.name).join(", ")}` : ""}</li>)}</ul>}
+              {e.items.length > 0 && <ul className="mt-1 text-xs text-stone-600">{e.items.slice(0, 5).map(x => <li key={x.id}>{x.name}{x.affinity !== undefined ? ` · affinity ${x.affinity.toFixed(2)}` : ""}{x.tags.length ? ` · ${x.tags.slice(0, 3).map(t => t.name).join(", ")}` : ""}</li>)}</ul>}
             </details>
           </li>
         ))}
@@ -43,8 +43,8 @@ export function EvidencePanel({ evidence, highlight }: { evidence: Evidence[]; h
 export function CompareColumns({ plain, withQloo, qlooLabel, mock }: { plain: PlainAnswer | null; withQloo: { title: string; detail: string; badge?: React.ReactNode }[]; qlooLabel: string; mock: boolean }) {
   return (
     <section className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
-      <h2 className="flex items-center gap-2 text-base font-semibold"><Scale className="size-4 text-accent" aria-hidden />LLM only vs. LLM + Qloo — same input</h2>
-      <p className="mt-1 text-xs text-stone-500">Without Qloo, a language model can only repeat common stereotypes: it cannot measure which Japanese audiences actually share this taste, how strongly, or in which cities — and it cannot tell you when the data is too thin to say.</p>
+      <h2 className="flex items-center gap-2 text-base font-semibold"><Scale className="size-4 text-accent" aria-hidden />LLM only vs. LLM + Qloo, same input</h2>
+      <p className="mt-1 text-xs text-stone-500">Without Qloo, a language model can only repeat common stereotypes: it cannot measure which Japanese audiences actually share this taste, how strongly, or in which cities. It also cannot tell you when the data is too thin to say.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="rounded-lg bg-stone-50 p-3">
           <h3 className="text-sm font-semibold text-stone-700">LLM only: same model, same input, no tools {plain?.source === "mock" && <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-900">illustrative · no LLM</span>}</h3>

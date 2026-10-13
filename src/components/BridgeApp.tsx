@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Film, Loader2, MapPin, Music, Search, ShoppingBag, Tv } from "lucide-react";
 import { AffinityBars } from "./charts";
 import { CompareColumns, EvidenceChips, EvidencePanel } from "./Evidence";
@@ -23,6 +23,8 @@ export function BridgeApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [highlight, setHighlight] = useState<string | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (data) resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [data]);
 
   async function run(t: string) {
     setLoading(true); setError(""); setData(null);
@@ -55,7 +57,7 @@ export function BridgeApp() {
       </form>
       {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {loading && <p className="flex items-center gap-2 text-sm text-stone-500"><Loader2 className="size-4 animate-spin" aria-hidden />The agent is searching Qloo for your favourites and their Japanese taste neighbours…</p>}
-      {data && <Result body={data} onPick={pick} highlight={highlight} />}
+      <div ref={resultsRef} className="scroll-mt-16">{data && <Result body={data} onPick={pick} highlight={highlight} />}</div>
     </div>
   );
 }
@@ -66,8 +68,25 @@ function Result({ body, onPick, highlight }: { body: AnalysisBody<BridgeReport>;
   const markers = useMemo(() => r.places.filter(p => p.entity.lat !== undefined).map(p => ({ lat: p.entity.lat!, lon: p.entity.lon!, label: p.entity.name, sub: p.why })), [r.places]);
   const all = CATS.flatMap(c => r.picks[c.kind] ?? []).map(p => p.entity).sort((a, b) => (b.affinity ?? 0) - (a.affinity ?? 0));
 
+  const first = (k: EntityKind) => r.picks[k]?.[0]?.entity.name;
+  const topPlace = r.places[0]?.entity;
+  const glance = [
+    { label: "Music", value: first("artist") }, { label: "Film", value: first("movie") }, { label: "TV", value: first("tv_show") },
+    { label: "Osaka", value: topPlace?.name },
+  ].filter((x): x is { label: string; value: string } => !!x.value);
+
   return (
     <div className="space-y-6">
+      <section className={`rounded-2xl border-2 p-5 sm:p-6 ${r.seeds.length ? "border-stone-900 bg-white" : "border-amber-300 bg-amber-50"}`} aria-label="Conclusion">
+        <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Your taste in Japan</p>
+        <p className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{r.seeds.length ? `If you like ${r.seeds.map(s => s.name).join(" and ")}` : "Qloo could not match these favourites"}</p>
+        {glance.length > 0 && (
+          <dl className="mt-4 grid gap-3 sm:grid-cols-4">
+            {glance.map(x => <div key={x.label} className="rounded-lg bg-stone-50 p-3"><dt className="text-xs text-stone-500">{x.label}</dt><dd className="mt-0.5 text-lg font-medium leading-snug">{x.value}</dd></div>)}
+          </dl>
+        )}
+        {r.unmatched.length > 0 && <p className="mt-3 text-sm text-amber-800">Not found in Qloo: {r.unmatched.join(", ")}</p>}
+      </section>
       <section className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
         <p>{r.summary} <MockTag show={mock} /></p>
         <p className="mt-1 text-xs text-stone-500">{r.explanations === "claude"
@@ -82,7 +101,7 @@ function Result({ body, onPick, highlight }: { body: AnalysisBody<BridgeReport>;
             {CATS.map(({ kind, label, icon: Icon }) => (
               <section key={kind} className="rounded-xl border border-stone-200 bg-white p-4">
                 <h2 className="mb-2 flex items-center gap-2 font-semibold"><Icon className="size-4 text-accent" aria-hidden />{kind === "brand" ? label : `Japan · ${label}`}<MockTag show={mock} /></h2>
-                {(r.picks[kind] ?? []).length === 0 && <p className="text-sm text-stone-500">No Qloo results for this category.</p>}
+                {(r.picks[kind] ?? []).length === 0 && <p className="text-sm text-stone-500">{kind === "brand" && r.hiddenBrands?.length ? `Hidden: Qloo's brand links here (${r.hiddenBrands.slice(0, 3).join(", ")}) share no tags with your favourites, so they say little about your taste.` : "No Qloo results for this category."}</p>}
                 <ul className="space-y-2">
                   {(r.picks[kind] ?? []).map(p => (
                     <li key={p.entity.id} className="text-sm">
@@ -103,7 +122,7 @@ function Result({ body, onPick, highlight }: { body: AnalysisBody<BridgeReport>;
             <section className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
               <h2 className="mb-3 flex items-center gap-2 font-semibold"><MapPin className="size-4 text-accent" aria-hidden />Osaka places for your taste <MockTag show={mock} /></h2>
               <TasteMap center={OSAKA} markers={markers} />
-              <ol className="mt-3 space-y-1 text-sm">{r.places.map((p, i) => <li key={p.entity.id}><span className="font-mono text-xs text-stone-500">{i + 1}.</span> <span className="font-medium">{p.entity.name}</span> <span className="text-xs text-stone-500">— {p.why}</span></li>)}</ol>
+              <ol className="mt-3 space-y-1 text-sm">{r.places.map((p, i) => <li key={p.entity.id}><span className="font-mono text-xs text-stone-500">{i + 1}.</span> <span className="font-medium">{p.entity.name}</span> <span className="text-xs text-stone-500">{p.why}</span></li>)}</ol>
             </section>
           )}
         </>

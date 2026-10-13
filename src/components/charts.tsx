@@ -31,7 +31,7 @@ export function AffinityBars({ items, max = 6 }: { items: Entity[]; max?: number
         <li key={x.id} className="grid grid-cols-[minmax(0,1fr)_5rem_2.5rem] items-center gap-2 text-sm">
           <span className="truncate" title={x.name}>{x.name}</span>
           <div className="h-2 rounded bg-stone-100"><div className="h-2 rounded bg-accent" style={{ width: `${Math.round((x.affinity ?? 0) * 100)}%` }} /></div>
-          <span className="text-right text-xs tabular-nums text-stone-500">{x.affinity?.toFixed(2) ?? "—"}</span>
+          <span className="text-right text-xs tabular-nums text-stone-500">{x.affinity?.toFixed(2) ?? "n/a"}</span>
         </li>
       ))}
     </ul>

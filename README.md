@@ -1,6 +1,6 @@
-# TasteBridge — a taste-graph localization advisor for Taiwanese brands entering Japan
+# TasteBridge: a taste-graph localization advisor for Taiwanese brands entering Japan
 
-An AI agent that answers a question every small Taiwanese brand asks before a Japan launch: **"Will our customers' taste travel — and where, to whom, with what cultural references?"** Claude decides which of Qloo's taste-graph tools to call, every recommendation is tied to the Qloo calls behind it, and when the graph is thin the app says *"not enough data"* instead of guessing.
+An AI agent that answers a question every small Taiwanese brand asks before a Japan launch: **"Will our customers' taste travel, and where, to whom, with what cultural references?"** Claude decides which of Qloo's taste-graph tools to call, every recommendation is tied to the Qloo calls behind it, and when the graph is thin the app says *"not enough data"* instead of guessing.
 
 A second tab, **Taste Bridge**, applies the same engine to one person: a student or worker moving from Taiwan to Osaka types what they love at home and gets Japanese music, film, TV, brands and Osaka places that share that taste.
 
@@ -10,26 +10,26 @@ A second tab, **Taste Bridge**, applies the same engine to one person: a student
 
 Taiwanese F&B and lifestyle brands (bubble tea, tea, bakeries, design goods) increasingly expand to Japan, usually on intuition: "open in Tokyo, target young women, post on Instagram". Market research is out of budget for a 20-store brand, and the cost of picking the wrong city or audience is a failed first store.
 
-## What a plain LLM cannot do — and Qloo can
+## What a plain LLM cannot do, and Qloo can
 
-**Without Qloo, an LLM can only repeat common stereotypes. It cannot measure which Japanese audiences actually share your customers' tastes, how strongly, or in which cities — and it cannot tell you when the evidence is too thin to say.**
+**Without Qloo, an LLM can only repeat common stereotypes. It cannot measure which Japanese audiences actually share your customers' tastes, how strongly, or in which cities. It also cannot tell you when the evidence is too thin to say.**
 
 The app shows this side by side: for the same input, an **"LLM only"** column (same model, same settings, same input, no tools, same length limits) next to the agent's Qloo-backed answer, where every line carries evidence IDs and a confidence level computed by code.
 
 | | LLM only | LLM + Qloo (TasteBridge) |
 |---|---|---|
-| City choice | "Tokyo is the biggest market" | City fit from place affinity per city, compared across 6 cities; ties reported as a close call |
+| City choice | "Tokyo is the biggest market" | City fit from the affinity of same-category venues (e.g. bubble tea shops) per city, compared across 6 cities; gaps under 0.03 reported as a close call |
 | Audience | "young women 18–34" | Age/gender affinity of the comparable audience, with "no clear skew" when that is what the data says |
 | Cultural hooks | generic "Taiwan heritage" | Japanese artists, films, TV and brands that the same-taste audience likes |
-| Where exactly | famous districts | Taste heatmap and highest-affinity venues around the city centre |
+| Where exactly | famous districts | The district where the highest-affinity same-category venues cluster, plus a taste heatmap |
 | Thin data | always answers | Refuses: "not enough Qloo data", no city, no audience |
 
 ## Features
 
-- **Brand Advisor** (home): brand name + category → summary, 4–6 recommendations (entry city, target audience, cultural references, positioning, pop-up location), each with confidence and clickable evidence.
+- **Brand Advisor** (home): brand name + category → a conclusion card (city, district, culture to borrow, audience), then 4–6 recommendations (entry city, target audience, cultural references, positioning, pop-up location), each with confidence and clickable evidence.
 - City-fit chart, audience affinity chart, Japanese taste neighbours (music / film / TV / brands), Leaflet + OpenStreetMap map with a Qloo taste heatmap; when the agent inspected two close cities you can switch between them.
 - **"What Qloo provided" panel**: every Qloo call with endpoint, parameters, result count, top results, and whether the agent chose it or the coverage check added it.
-- **Taste Bridge** tab: Chinese or English favourites (e.g. 周杰倫, 海角七號, 牛肉麵) → Japanese equivalents with a "why you might like it" line written by Claude from the Qloo tags and affinity only, plus an Osaka map. Favourites Qloo doesn't know are listed as not found.
+- **Taste Bridge** tab: Chinese or English favourites (e.g. 周杰倫, 海角七號, 牛肉麵) → Japanese equivalents with a "why you might like it" line written by Claude from the Qloo tags and affinity only, plus an Osaka map. Picks that share Qloo tags with the favourites come first; brand links that share none (usually global luxury labels) are hidden and named in a note. Favourites Qloo doesn't know are listed as not found.
 - **Evaluation** tab: 8 fictional brand scenarios run end-to-end with the real agent and live Qloo, scored by code (citations, honesty on thin data, city choice), with per-run cost.
 - Works on phones; no AI-generated images (icons are lucide-react).
 
@@ -42,15 +42,17 @@ Browser (Next.js App Router, Tailwind, Leaflet)
 Cost protection (src/lib/analyze.ts)
    pre-generated showcase bundle → in-memory answer cache → per-visitor / global / USD daily caps
    ▼
-Agent (src/lib/agent.ts) — Claude tool use, manual loop
+Agent (src/lib/agent.ts): Claude tool use, manual loop
    ├─ Claude chooses the tools: search_entities, home_market_proxies, audience_profile,
    │  japan_taste_neighbors, score_japan_cities, city_places, compare_tastes → submit_report
    ├─ after every turn, code tells the model the data coverage it computed (it cannot overrule it)
    ├─ guards: category keywords must name the product (no silent broadening), max 8 turns,
    │  prompt-token ceiling, "wrap up" note near the end, refusal / max_tokens → rules fallback
    ├─ coverage check fills any analysis step the model skipped (labelled "auto-filled")
-   ├─ confidence = f(result counts, affinity, # independent endpoints), computed in code;
-   │  citations to evidence IDs that don't exist are dropped and counted
+   ├─ confidence = f(result counts, affinity, # independent endpoints), computed in code, then capped:
+   │  close-call city (top-2 gap < 0.03) → at most medium; low-popularity venues → one level lower;
+   │  hedged wording ("evidence is moderate") → the level the text admits; overclaiming words are softened
+   ├─ citations to evidence IDs that don't exist are dropped and counted
    └─ rules-based agent when there is no Anthropic key or the daily AI budget is used up
    ▼
 Qloo client (src/lib/qloo.ts)
@@ -73,7 +75,7 @@ The hackathon kit (`@qloo/qloo-harness`) describes six validated workflows. Tast
 | `home_market_proxies` (keyword → place tag → same-category Taipei venues) | `GET /v2/tags`, then `GET /v2/insights` place + `filter.tags` + `filter.location` | Find Qloo tags (`find_tags`), then discover recommendations |
 | `audience_profile` | `GET /v2/insights` `filter.type=urn:demographics` | Compare audiences |
 | `japan_taste_neighbors` (artist / movie / tv_show / brand, pinned to Japan) | `GET /v2/insights` + `signal.location.query=Japan` + per-type Japan filter | Discover recommendations |
-| `score_japan_cities` (6 cities, 15 km radius each) | `GET /v2/insights` place + WKT point + radius, per city | Rank a shortlist; investigate geographic popularity |
+| `score_japan_cities` (6 cities, 15 km radius each, same-category venues when the category tag is known) | `GET /v2/insights` place + `filter.tags` + WKT point + radius, per city | Rank a shortlist; investigate geographic popularity |
 | `city_places` (same-category venues first) + taste heatmap | `GET /v2/insights` place (6 km) and `filter.type=urn:heatmap` | Investigate geographic popularity |
 | `compare_tastes` | `GET /v2/analysis/compare` | Compare audiences |
 | Taste Bridge `osaka_places` | `GET /v2/insights` place, 5 km around Osaka | Discover recommendations; geographic popularity |
@@ -91,12 +93,13 @@ Parameter choices were checked against the live API; details and what did *not* 
 | Honest on thin data ("millet wine", "holographic smart socks") | 2 / 2 refuse: no city, no audience, "not enough Qloo data" |
 | City choice | 6 / 6 recommend Qloo's top-ranked city (or one tied with it) |
 | Qloo calls chosen by the model | 100% (the coverage check did not need to add any) |
+| Average Claude cost per analysis | US$0.051 (brand analyses with enough data: US$0.062; thin-data cases stop early at about US$0.02) |
 
 The first live run failed 4 scenarios; what was wrong and how it was fixed is in [`docs/qloo-api-notes.md`](docs/qloo-api-notes.md#data-quality-observations-2026-10-13).
 
 ## Cost protection for the public demo
 
-Measured from token usage at list prices: a brand analysis costs about **US$0.06** (agent loop + "LLM only" column, 6 Claude calls), a thin-data brand about US$0.02 (the agent stops early), and a Taste Bridge query about US$0.03.
+Measured from token usage at list prices: about **US$0.05 per analysis on average** (the Evaluation tab's figure). A brand analysis with enough data costs about US$0.06 (agent loop + "LLM only" column, 6 Claude calls), a thin-data brand about US$0.02 (the agent stops early), and a Taste Bridge query about US$0.03.
 
 - **Pre-generated presets.** The 8 evaluation brands and the Taste Bridge examples are pre-generated with the real agent (`npm run showcase:build`), so judges see full results instantly and at no cost.
 - **Answer cache** keyed by normalized input (case, spacing, keyword order).
@@ -105,13 +108,7 @@ Measured from token usage at list prices: a brand analysis costs about **US$0.06
 
 ### Where the pre-generated results live
 
-They contain Qloo-derived content, so they are never committed. Locally they are written to the git-ignored `.data/showcase.json`. For Vercel, the simplest compliant option is a **private Vercel Blob**:
-
-1. In the Vercel project: Storage → Create → Blob, access **Private**, connect it to the project (this adds `BLOB_READ_WRITE_TOKEN`). The Hobby plan includes Blob storage; the bundle is about 1.5 MB.
-2. Upload: `vercel blob put .data/showcase.json --access private` and copy the URL.
-3. Set `SHOWCASE_BLOB_URL` to that URL in the project's environment variables.
-
-The server fetches the bundle with the token and keeps it in memory; it is never sent to the browser as a file and is not part of the build output.
+They contain Qloo-derived content, so they are never committed. `npm run showcase:build` writes them to the git-ignored `.data/showcase.json`; the private Qloo response cache is the git-ignored `.cache/qloo/`. The deployment is made from the local folder with `vercel deploy --prod`, which uploads both into the private Vercel deployment (`next.config.ts` traces them into the server function; `.vercelignore` does not exclude them). They are read on the server only and never served to the browser as files. The public GitHub repository contains neither.
 
 ## Run it
 
@@ -124,10 +121,10 @@ npm run dev                  # http://localhost:3000
 Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
 
 With keys:
-- `npm run showcase:build` — run all presets with Claude + live Qloo, score the evaluation set, write `.data/showcase.json` (`ONLY="pearl|周杰倫"` rebuilds a subset). Full run ≈ US$0.55.
-- `npm run eval:live` — the evaluation set with the rules-based agent on live Qloo (no LLM cost).
-- `npm run probe:live` — data-quality summary for every demo input.
-- `npm run snapshots:record` — warm the private Qloo cache (`.cache/qloo/`, git-ignored).
+- `npm run showcase:build`: run all presets with Claude + live Qloo, score the evaluation set, write `.data/showcase.json` (`ONLY="pearl|周杰倫"` rebuilds a subset). Full run ≈ US$0.55.
+- `npm run eval:live`: the evaluation set with the rules-based agent on live Qloo (no LLM cost).
+- `npm run probe:live`: data-quality summary for every demo input.
+- `npm run snapshots:record`: warm the private Qloo cache (`.cache/qloo/`, git-ignored).
 
 Without `ANTHROPIC_API_KEY` the agent runs its rules-based path and the UI says the AI explanation needs an LLM key.
 
@@ -137,7 +134,7 @@ Submission checklist: [`docs/SUBMISSION-CHECKLIST.md`](docs/SUBMISSION-CHECKLIST
 
 - Brand inputs in the demo are fictional; real small Taiwanese brands are usually not in Qloo, so the agent uses same-category venues in Taipei as proxies and says so. Proxies are stand-ins for customers, not a measurement of the brand.
 - Qloo coverage of Japanese venues and Taiwanese entities is not guaranteed in the hackathon environment; that is why data coverage and confidence are first-class outputs.
-- City fit scores are close together across the six cities (differences of 0.01–0.05); small gaps are reported as a close call.
+- City fit is category-specific only when Qloo has a place tag for the brand's category (bubble tea, tea store, bakery, gift shop...). Otherwise the city score is the overall taste affinity of the brand's audience, not category-specific, and the UI says so. The top two cities are often within 0.03; that is reported as a close call and the city recommendation is capped at medium confidence.
 - Japanese culture neighbours are popularity-biased: the same well-known names recur across different inputs.
 - "Brands" means brands Qloo lists with Japan as a key market, not Japanese-owned brands.
 - Food words typed in Chinese (牛肉麵, 夜市) usually have no Qloo entity; they are reported as not found.
@@ -146,4 +143,4 @@ Submission checklist: [`docs/SUBMISSION-CHECKLIST.md`](docs/SUBMISSION-CHECKLIST
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

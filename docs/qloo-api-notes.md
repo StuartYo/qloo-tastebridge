@@ -38,10 +38,10 @@ Sources
 | `urn:entity:place` + `filter.location.query=Osaka` | Works. |
 | `urn:entity:place` + `filter.geocode.country_code=JP` | Works (mixed cities). |
 | `urn:entity:place` + `filter.tags=<category tag>` + `filter.location=POINT(Taipei)` (no signal) | Works: real same-category venues in Taipei (e.g. bubble tea shops). Used as home-market taste proxies. |
-| `signal.interests.tags` alone | Returns a flat affinity (same value for every result) — useless for ranking; demographics with only tags → empty. Not used as a signal. |
+| `signal.interests.tags` alone | Returns a flat affinity (same value for every result), useless for ranking; demographics with only tags → empty. Not used as a signal. |
 | `sort_by` | Only `affinity`, `distance`, `rating`, `quality` (400 otherwise). |
 | `/v2/insights` `filter.type=urn:heatmap` + `filter.location.query=<city>` | Works. `{ results: { heatmap: [{ location: { latitude, longitude, geohash }, query: { affinity, affinity_rank, popularity, … } }] } }`. |
-| `GET /v2/analysis/compare` | Works. Shape `{ results: { tags: [shared…], a: [tags of A], b: [tags of B] } }`, each tag `{ tag_id, name, subtype, query: { count } }`. `tags` is often empty; tags are type-specific, so **place vs brand shares nothing** — compare venues with venues. We fall back to intersecting A and B by tag name. |
+| `GET /v2/analysis/compare` | Works. Shape `{ results: { tags: [shared…], a: [tags of A], b: [tags of B] } }`, each tag `{ tag_id, name, subtype, query: { count } }`. `tags` is often empty; tags are type-specific, so **place vs brand shares nothing**: compare venues with venues. We fall back to intersecting A and B by tag name. |
 | Entity location | `location: { lat, lon, geohash }` on places; `properties.geocode.city/country_code`. |
 
 ## How this app maps to the API
@@ -79,7 +79,7 @@ Rules agent, no LLM:
   right entities (directly or via their English titles). Food words (牛肉麵, 夜市) only match venue names, so the
   agent reports them as not found rather than forcing an unrelated venue.
 
-Claude agent (Sonnet 5.5, tool use) on the same 8 scenarios — what the evaluation found and what was changed:
+Claude agent (Sonnet 5.5, tool use) on the same 8 scenarios: what the evaluation found and what was changed:
 - The model was told the data coverage after every tool result. Early in a run (proxies found, nothing measured
   yet) code reported "insufficient", so the model stopped after one turn on 4 of 6 good scenarios. Fix: the
   coverage note is sent once per turn and has explicit early states ("no_proxies_yet",
@@ -93,3 +93,23 @@ Claude agent (Sonnet 5.5, tool use) on the same 8 scenarios — what the evaluat
   lets the reader switch.
 - After the fixes: 8/8 pass, 100% citation coverage, no invented evidence IDs, both thin-data cases refuse,
   6/6 recommended cities match Qloo's ranking (or a tie with it). The model chose every Qloo call in all 8 runs.
+
+## Judge feedback round (2026-10-13, evening)
+
+- **City fit was not category-specific.** With only `signal.interests.entities` + location, the top places
+  behind a city's score were hotels, kimono rental and steak houses, not bubble tea shops. Checked live:
+  adding the brand's category tag (`filter.tags`, the same tag `home_market_proxies` found) to the 15 km city
+  query returns same-category venues per city. Cities are now scored on those venues; the evidence row says
+  "matching Bubble Tea venues". If the tag finds fewer than 3 venues across all cities, the app falls back to
+  all places and labels the score "overall taste affinity of the brand's audience, not category-specific".
+  Effect: scores spread out (for the bubble tea sample, two cities have venues near 0.8, others drop to 0 to 0.5),
+  so the ranking now carries information.
+- **Confidence vs. wording.** A HIGH label sat next to text saying "the evidence is moderate", and a city
+  recommendation was HIGH with a 0.02 gap. Code now caps a city recommendation at medium when the top-two gap
+  is under 0.03, lowers venue advice one level when the cited venues' mean Qloo popularity is under 0.5, lowers
+  the level to what the text itself admits ("moderate", "close call", "no Qloo support"), and softens
+  overclaiming words ("confirms", "clear winner") whenever the level is below high. The reason is shown under
+  the pill.
+- **Taste Bridge brands.** Brand neighbours that share no tag with the favourites (global luxury labels and
+  airlines, linked to almost any audience) are hidden and named in a note; other picks are ranked with
+  tag-sharing items first.

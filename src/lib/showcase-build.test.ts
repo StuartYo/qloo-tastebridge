@@ -1,6 +1,6 @@
 // `npm run showcase:build`: runs every preset (8 evaluation brands + Taste Bridge examples) with the real
 // LLM agent and live Qloo, scores the evaluation set, and writes the private bundle to .data/showcase.json
-// (git-ignored; upload it to a private Vercel Blob for deployment). ONLY="pearl|周杰倫" rebuilds a subset.
+// (git-ignored; `vercel deploy` ships it inside the private deployment). ONLY="pearl|周杰倫" rebuilds a subset.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "fs";
 import path from "path";
 import { expect, test } from "vitest";

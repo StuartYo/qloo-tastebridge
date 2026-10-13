@@ -13,7 +13,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TasteBridge — taste-graph localization advisor for Taiwan → Japan",
+  title: "TasteBridge: taste-graph localization advisor for Taiwan → Japan",
   description: "An agent that uses Qloo's taste graph to tell Taiwanese brands where and how they fit in Japan, with every claim tied to evidence.",
 };
 

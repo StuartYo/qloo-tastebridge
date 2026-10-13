@@ -1,7 +1,8 @@
 // Pre-generated results for the preset examples, so judges see full results instantly and the demo never
 // looks broken when the daily LLM caps are reached. The bundle holds Qloo-derived content, so it is never
-// committed: locally it lives in the git-ignored .data/showcase.json; on Vercel it is read from a private
-// Vercel Blob (SHOWCASE_BLOB_URL + the BLOB_READ_WRITE_TOKEN that Vercel injects when the store is connected).
+// committed: it lives in the git-ignored .data/showcase.json, and `vercel deploy` uploads it from the local
+// folder into the private deployment (next.config.ts traces it into the server function). It is read on the
+// server only and never served to the browser as a file.
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import type { BrandInput } from "./types";
@@ -30,16 +31,8 @@ let inflight: Promise<ShowcaseBundle | null> | undefined;
 
 async function fetchBundle(): Promise<ShowcaseBundle | null> {
   const file = SHOWCASE_FILE();
-  // Read from .data/showcase.json; next.config.ts traces it into the private Vercel deployment (never the public repo).
-  try { if (existsSync(/*turbopackIgnore: true*/ file)) return JSON.parse(readFileSync(/*turbopackIgnore: true*/ file, "utf8")); } catch { /* fall through */ }
-  const url = process.env.SHOWCASE_BLOB_URL;
-  const token = process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL_OIDC_TOKEN;
-  if (!url || !token) return null;
-  try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-    if (!res.ok) return null;
-    return (await res.json()) as ShowcaseBundle;
-  } catch { return null; }
+  try { if (existsSync(/*turbopackIgnore: true*/ file)) return JSON.parse(readFileSync(/*turbopackIgnore: true*/ file, "utf8")); } catch { /* no bundle */ }
+  return null;
 }
 
 export async function loadShowcase(): Promise<ShowcaseBundle | null> {
