@@ -1,12 +1,14 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Film, Loader2, MapPin, Music, ShoppingBag, Sparkles, Tv, Users } from "lucide-react";
 import { AffinityBars, AudienceChart, CityFitBars, ConfidencePill } from "./charts";
 import { CompareColumns, EvidenceChips, EvidencePanel } from "./Evidence";
 import { MockTag } from "./ModeBanner";
-import { DEMO_BRANDS } from "@/lib/demos";
-import type { BrandInput, BrandReport, EntityKind, PlainAnswer } from "@/lib/types";
+import { RunMeta } from "./RunMeta";
+import { BRAND_SCENARIOS, DEMO_BRANDS } from "@/lib/demos";
+import type { AnalysisBody } from "@/lib/analyze";
+import type { BrandInput, BrandReport, EntityKind } from "@/lib/types";
 
 const TasteMap = dynamic(() => import("./TasteMap"), { ssr: false, loading: () => <div className="h-72 animate-pulse rounded-lg bg-stone-100 sm:h-96" /> });
 
@@ -17,7 +19,7 @@ const NEIGHBOR_CARDS: { kind: EntityKind; label: string; icon: typeof Music }[] 
 
 export function AdvisorApp() {
   const [form, setForm] = useState<BrandInput>({ name: "", category: "", description: "" });
-  const [data, setData] = useState<{ report: BrandReport; baseline: PlainAnswer } | null>(null);
+  const [data, setData] = useState<AnalysisBody<BrandReport> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [highlight, setHighlight] = useState<string | null>(null);
@@ -31,6 +33,15 @@ export function AdvisorApp() {
       setData(j);
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
   }
+  // Deep link from the Evaluation tab: /?s=<scenario id> opens that scenario's report.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("s");
+    const s = BRAND_SCENARIOS.find(x => x.id === id);
+    if (!s) return;
+    const input = { name: s.name, category: s.category, description: s.description, keywords: s.keywords };
+    const t = setTimeout(() => { setForm({ ...input, description: input.description ?? "" }); run(input); }, 0);
+    return () => clearTimeout(t);
+  }, []);
   const pickEvidence = (id: string) => { setHighlight(id); document.getElementById(`ev-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); };
 
   return (
@@ -66,7 +77,7 @@ export function AdvisorApp() {
 
       {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {loading && <p className="flex items-center gap-2 text-sm text-stone-500"><Loader2 className="size-4 animate-spin" aria-hidden />The agent is querying Qloo: search, tags, audience, Japan taste neighbours, city fit, places, compare…</p>}
-      {data && <Report report={data.report} baseline={data.baseline} onPick={pickEvidence} highlight={highlight} />}
+      {data && <Report body={data} onPick={pickEvidence} highlight={highlight} />}
     </div>
   );
 }
@@ -80,24 +91,31 @@ function Card({ title, icon: Icon, children, mock, className = "" }: { title: st
   );
 }
 
-function Report({ report: r, baseline, onPick, highlight }: { report: BrandReport; baseline: PlainAnswer; onPick: (id: string) => void; highlight: string | null }) {
+function Report({ body, onPick, highlight }: { body: AnalysisBody<BrandReport>; onPick: (id: string) => void; highlight: string | null }) {
+  const { report: r, baseline } = body;
   const mock = r.qlooMode === "mock";
-  const markers = useMemo(() => r.places.filter(p => p.lat !== undefined).map(p => ({ lat: p.lat!, lon: p.lon!, label: p.name, sub: `Qloo affinity ${p.affinity?.toFixed(2) ?? "—"}${p.tags.length ? " · " + p.tags.slice(0, 3).map(t => t.name).join(", ") : ""}` })), [r.places]);
-  const center = useMemo<[number, number]>(() => (r.topCity ? [r.topCity.lat, r.topCity.lon] : [34.6937, 135.5023]), [r.topCity]);
+  // One view per city the agent looked at in detail (top-ranked first); close calls can be compared.
+  const views = useMemo(() => (r.cityViews?.length ? r.cityViews : r.places.length ? [{ city: r.placesCity ?? r.topCity?.name ?? "", places: r.places, heatmap: r.heatmap, evidence: [] as string[] }] : []), [r]);
+  const [viewIdx, setViewIdx] = useState(0);
+  const view = views[Math.min(viewIdx, views.length - 1)];
+  const placesCity = view?.city;
+  const markers = useMemo(() => (view?.places ?? []).filter(p => p.lat !== undefined).map(p => ({ lat: p.lat!, lon: p.lon!, label: p.name, sub: `Qloo affinity ${p.affinity?.toFixed(2) ?? "—"}${p.tags.length ? " · " + p.tags.slice(0, 3).map(t => t.name).join(", ") : ""}` })), [view]);
+  const cityInfo = r.cities.find(c => c.name === placesCity) ?? r.topCity;
+  const center = useMemo<[number, number]>(() => (cityInfo ? [cityInfo.lat, cityInfo.lon] : [34.6937, 135.5023]), [cityInfo]);
   const insufficient = r.sufficiency === "insufficient";
 
   return (
     <div className="space-y-6">
       <section className={`rounded-xl border p-4 sm:p-5 ${insufficient ? "border-amber-300 bg-amber-50" : "border-stone-200 bg-white"}`}>
         <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
-          <span>Agent: {r.llm === "claude" ? "Claude + Qloo tools" : "rules-based fallback + Qloo"}</span>·<span>{r.evidence.length} Qloo calls</span>·
-          <span>Data coverage: <strong className={insufficient ? "text-amber-900" : r.sufficiency === "thin" ? "text-stone-700" : "text-emerald-700"}>{r.sufficiency}</strong></span>
+          <span>Data coverage (computed from Qloo results): <strong className={insufficient ? "text-amber-900" : r.sufficiency === "thin" ? "text-stone-700" : "text-emerald-700"}>{r.sufficiency}</strong></span>
           <MockTag show={mock} />
         </div>
         {insufficient && <p className="mt-2 flex items-center gap-2 font-semibold text-amber-900"><AlertTriangle className="size-4" aria-hidden />Not enough Qloo data — we won&apos;t guess.</p>}
         <p className="mt-2 text-base">{r.summary}</p>
-        {r.llm === "rules" && <p className="mt-2 text-xs text-stone-500">AI explanation needs an LLM key. This summary and the recommendations are assembled by fixed rules from the Qloo results below.</p>}
+        {r.llm === "rules" && <p className="mt-2 text-xs text-stone-500">{r.llmNote ?? "AI explanation needs an LLM key."} This summary and the recommendations are assembled by fixed rules from the Qloo results below.</p>}
         {r.seeds.length > 0 && <p className="mt-2 text-xs text-stone-500">Taste proxies found in Qloo: {r.seeds.map(s => s.name).join(", ")}. Results describe what groups with this taste tend to like, not any one customer.</p>}
+        <div className="mt-3 border-t border-stone-100 pt-2"><RunMeta body={body} calls={r.evidence.length} agentCalls={r.evidence.filter(e => e.origin === "agent").length} /></div>
       </section>
 
       <Card title="Recommendations" icon={Sparkles} mock={mock}>
@@ -118,9 +136,21 @@ function Report({ report: r, baseline, onPick, highlight }: { report: BrandRepor
             <Card title="City fit across Japan" icon={MapPin} mock={mock}><CityFitBars cities={r.cities} /><p className="mt-2 text-[11px] text-stone-500">Fit = mean Qloo affinity of the top matching places × coverage. Source: place insights per city.</p></Card>
             <Card title="Who the audience is" icon={Users} mock={mock}>{r.audience ? <AudienceChart audience={r.audience} /> : <p className="text-sm text-stone-500">Qloo returned no demographic data.</p>}</Card>
           </div>
-          {markers.length > 0 && r.topCity && (
-            <Card title={`Where in ${r.topCity.name}: taste heatmap and matching places`} icon={MapPin} mock={mock}>
-              <TasteMap center={center} markers={markers} heat={r.heatmap} />
+          {markers.length > 0 && placesCity && (
+            <Card title={`Where in ${placesCity}: taste heatmap and matching places`} icon={MapPin} mock={mock}>
+              {views.length > 1 && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="tablist" aria-label="City">
+                  <span className="text-stone-500">Cities the agent checked:</span>
+                  {views.map((v, i) => (
+                    <button key={v.city} type="button" role="tab" aria-selected={v.city === placesCity} onClick={() => setViewIdx(i)}
+                      className={`rounded-full border px-3 py-1 ${v.city === placesCity ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 hover:border-accent hover:text-accent"}`}>
+                      {v.city}{v.city === r.topCity?.name ? " (top fit)" : ""}
+                    </button>
+                  ))}
+                  {view.evidence.length > 0 && <EvidenceChips ids={view.evidence} onPick={onPick} />}
+                </div>
+              )}
+              <TasteMap center={center} markers={markers} heat={view?.heatmap ?? []} />
               <ol className="mt-3 grid gap-1 text-sm sm:grid-cols-2">{markers.map((m, i) => <li key={m.label}><span className="font-mono text-xs text-stone-500">{i + 1}.</span> {m.label}</li>)}</ol>
             </Card>
           )}
@@ -130,7 +160,7 @@ function Report({ report: r, baseline, onPick, highlight }: { report: BrandRepor
         </>
       )}
 
-      <CompareColumns plain={baseline} mock={mock} qlooLabel={r.llm === "claude" ? "LLM + Qloo (this agent)" : "Qloo + rules (this agent, no LLM key yet)"}
+      <CompareColumns plain={baseline} mock={mock} qlooLabel={r.llm === "claude" ? "Same model + Qloo tools (this agent)" : "Qloo + rules (this agent, no LLM)"}
         withQloo={r.recommendations.slice(0, 5).map(x => ({ title: x.title, detail: x.detail, badge: <span className="mt-0.5 flex items-center gap-2"><ConfidencePill c={x.confidence} /><EvidenceChips ids={x.evidence} onPick={onPick} /></span> }))} />
 
       <EvidencePanel evidence={r.evidence} highlight={highlight} />

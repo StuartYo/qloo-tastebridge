@@ -76,7 +76,7 @@ test("live failure falls back to a recorded snapshot", async () => {
 });
 
 test("strict search keeps only name or alias matches (synthetic shapes, no Qloo data)", () => {
-  expect(nameMatches("Gong Cha", { name: "Harvard University" })).toBe(false);
+  expect(nameMatches("Gong Cha", { name: "Some State University" })).toBe(false);
   expect(nameMatches("Chatime", { name: "Chatime Indo" })).toBe(true);
   expect(nameMatches("周杰倫", { name: "Example Artist", properties: { akas: [{ value: "周杰倫" }] } })).toBe(true);
   expect(nameMatches("x", { name: "x" })).toBe(false);

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "eval:live": "vitest run src/lib/eval.test.ts",
     "snapshots:record": "vitest run src/lib/record-snapshots.test.ts",
-    "probe:live": "vitest run src/lib/live-probe.test.ts"
+    "probe:live": "vitest run src/lib/live-probe.test.ts",
+    "showcase:build": "vitest run src/lib/showcase-build.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

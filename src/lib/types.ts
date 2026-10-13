@@ -35,6 +35,8 @@ export interface Evidence {
   summary: string;
   count: number;
   items: Entity[];
+  /** Who asked for this call: the model ("agent"), the coverage check that fills skipped steps, or the rules fallback. */
+  origin?: "agent" | "coverage" | "rules";
 }
 
 export interface Recommendation {
@@ -50,6 +52,8 @@ export interface AudienceProfile {
 }
 
 export interface CityFit { name: string; lat: number; lon: number; score: number; count: number; evidence: string }
+
+export interface CityView { city: string; places: Entity[]; heatmap: HeatPoint[]; evidence: string[] }
 
 export interface HeatPoint { lat: number; lon: number; affinity: number }
 
@@ -73,10 +77,18 @@ export interface BrandReport {
   cities: CityFit[];
   topCity: CityFit | null;
   places: Entity[];
+  /** City the places and heatmap belong to (the agent may look at more than the top-ranked city). */
+  placesCity?: string;
+  /** Every city the agent looked at in detail (top-ranked first). */
+  cityViews?: CityView[];
   heatmap: HeatPoint[];
   sharedThemes: string[];
   recommendations: Recommendation[];
   evidence: Evidence[];
+  /** Citations the model gave to evidence IDs that don't exist (dropped by code). */
+  droppedCitations: number;
+  /** Why Claude was not used, when it wasn't. */
+  llmNote?: string;
 }
 
 export interface BridgePick { entity: Entity; why: string; evidence: string[] }
@@ -93,6 +105,9 @@ export interface BridgeReport {
   picks: Partial<Record<EntityKind, BridgePick[]>>;
   places: BridgePick[];
   evidence: Evidence[];
+  /** Who wrote the "why you'd like it" lines. */
+  explanations: "claude" | "rules";
+  llmNote?: string;
 }
 
 export interface PlainAnswer { source: "claude" | "mock"; items: { title: string; detail: string }[] }

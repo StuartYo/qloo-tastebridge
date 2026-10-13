@@ -4,6 +4,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { ModeBanner } from "@/components/ModeBanner";
 import { serverQlooMode } from "@/lib/qloo";
+import { hasAnthropicKey } from "@/lib/llm";
 
 // The banner depends on runtime keys, so render per request (not baked in at build time).
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
-        <ModeBanner mode={serverQlooMode()} anthropic={!!process.env.ANTHROPIC_API_KEY} />
+        <ModeBanner mode={serverQlooMode()} anthropic={hasAnthropicKey()} />
         <Nav />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 sm:px-6">{children}</main>
         <footer className="border-t border-stone-200 px-4 py-6 text-center text-xs text-stone-500">

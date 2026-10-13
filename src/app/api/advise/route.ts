@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getLLM, runBrandAgent } from "@/lib/agent";
-import { plainBaseline } from "@/lib/plainllm";
-import { createQlooClient } from "@/lib/qloo";
-import { allow, cachedAnswer, storeAnswer, stripPersonalData } from "@/lib/ratelimit";
+import { analyzeBrand } from "@/lib/analyze";
+import { brandKey, showcaseHit } from "@/lib/showcase";
+import { allow, cachedAnswer, clientKey, stripPersonalData } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -19,21 +18,16 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Please give a brand name and category." }, { status: 400 });
   const input = { ...parsed.data, name: stripPersonalData(parsed.data.name), category: stripPersonalData(parsed.data.category), description: parsed.data.description && stripPersonalData(parsed.data.description) };
   if (!input.name || !input.category) return NextResponse.json({ error: "Please give a brand name and category." }, { status: 400 });
-  const key = "advise:" + JSON.stringify(input).toLowerCase();
-  const hit = cachedAnswer(key);
+  // Cached answers (showcase presets, repeated inputs) cost nothing and skip the rate limit.
+  const key = brandKey(input);
+  const memo = cachedAnswer<object>(key);
+  const hit = (await showcaseHit(key)) ?? (memo && { ...memo, served: "cache" });
   if (hit) return NextResponse.json(hit);
-  if (!allow(req)) return NextResponse.json({ error: "Demo limit reached. Please wait a minute (or try again tomorrow)." }, { status: 429 });
-  const llm = getLLM();
+  if (!allow(req)) return NextResponse.json({ error: "Demo limit reached. Please wait a minute (or try again tomorrow). The sample brands still work." }, { status: 429 });
   try {
-    const [report, baseline] = await Promise.all([
-      runBrandAgent(input, { qloo: createQlooClient(), llm }),
-      plainBaseline("brand", input, llm),
-    ]);
-    const body = { report, baseline };
-    storeAnswer(key, body);
-    return NextResponse.json(body);
+    return NextResponse.json(await analyzeBrand(input, { visitor: clientKey(req) }));
   } catch (e: any) {
     console.error("advise failed:", e?.status ?? "", String(e?.message ?? e).slice(0, 120));
-    return NextResponse.json({ error: e?.status === 429 ? "Qloo is busy right now. Please try again in a minute." : "The taste analysis failed. Please try again." }, { status: 502 });
+    return NextResponse.json({ error: e?.status === 429 ? "Qloo is busy right now. Please try again in a minute." : "The taste analysis failed. Please try again, or pick a sample brand." }, { status: 502 });
   }
 }

@@ -24,15 +24,15 @@ Sources
 
 | Call | Result |
 |---|---|
-| `GET /search?query=…&types=urn:entity:brand,…&take=…` | Works. Response `{ results: [entity…] }`. **After the real hit it pads with loosely related filler** (e.g. "Gong Cha" as brand → Harvard, NBA). We keep only results whose name or `properties.akas` contain the query. |
+| `GET /search?query=…&types=urn:entity:brand,…&take=…` | Works. Response `{ results: [entity…] }`. **After the real hit it pads with loosely related filler** (e.g. a tea-chain name searched as a brand returned a university and a sports league). We keep only results whose name or `properties.akas` contain the query. |
 | `/search` `filter.location` | Must be `lat,lon` (WKT is rejected here). Not used. |
 | `/search` `sort_by=popularity` | Returns globally popular entities unrelated to the query. Not used. |
 | `GET /v2/tags?filter.query=…&filter.parents.types=urn:entity:place` | Works. Shape `{ results: { tags: [{ id, name, type, parents, popularity }] } }` (field is `id`, not `tag_id`). |
 | `/v2/insights` `filter.type=urn:demographics` | Works. One row per entity *that has data* (often fewer rows than seeds). Values are relative affinity (−1…1). |
-| `/v2/insights` `urn:entity:artist` + `signal.location.query=Japan` | Works but barely shifts results (K-pop dominated). **Adding `filter.tags` with Japanese music genres** (`urn:tag:genre:music:japanese`, `j_pop`, `jpop`, `japanese_pop`, `japanese_rock`, …) gives real J-pop (宇多田ヒカル, 中島美嘉, 浜崎あゆみ). Multiple `filter.tags` behave as OR. |
+| `/v2/insights` `urn:entity:artist` + `signal.location.query=Japan` | Works but barely shifts results (K-pop dominated). **Adding `filter.tags` with Japanese music genres** (`urn:tag:genre:music:japanese`, `j_pop`, `jpop`, `japanese_pop`, `japanese_rock`, …) gives well-known Japanese pop artists. Multiple `filter.tags` behave as OR. |
 | `urn:entity:movie` + `filter.release_country=Japan` | **Silently ignored** (US films came back; `JP` returned 0). Use `filter.tags` `urn:tag:keyword:media:japanese`, `…:japanese_drama`, `urn:tag:subgenre:qloo:anime`. |
 | `urn:entity:tv_show` + `filter.release_country=Japan` | Works (Japanese shows). |
-| `urn:entity:brand` + any location | No geo filter for brands. **`filter.tags=urn:tag:key_market:qloo:japan`** returns brands Qloo lists with Japan as a key market (LINE, Genki Sushi, Yoshinoya, Shake Shack…). That is "active in Japan", not "Japanese-owned"; the UI says so. |
+| `urn:entity:brand` + any location | No geo filter for brands. **`filter.tags=urn:tag:key_market:qloo:japan`** returns brands Qloo lists with Japan as a key market (a mix of Japanese and international consumer brands). That is "active in Japan", not "Japanese-owned"; the UI says so. |
 | `urn:entity:place` + `filter.geocode.name=Osaka` | **Returned 0** (geocode city for Osaka places is "Osaka Prefecture"). Not used. |
 | `urn:entity:place` + `filter.location=34.69,135.50` | **400 "WKT format is invalid"**. Use `filter.location=POINT(135.5023 34.6937)` (lon lat) + `filter.location.radius` (metres). |
 | `urn:entity:place` + `filter.location.query=Osaka` | Works. |
@@ -58,19 +58,38 @@ Sources
 | Heatmap | `filter.type=urn:heatmap&filter.location.query=<city>&signal.interests.entities=…` |
 | Shared themes | `/v2/analysis/compare` A = proxies, B = top venues in the chosen city (or Japan-market brands when proxies are brands/artists) |
 
-## Data-quality observations (2026-10-13, rules agent, no LLM)
+## Data-quality observations (2026-10-13)
 
-- Brand advisor, 6 "should have data" scenarios: all produced cited reports. Bubble tea → same-category venues
-  in Osaka/Tokyo include Gong Cha, Yifang Taiwan Fruit Tea, Chun Shui Tang; oolong tea → Kyoto with Uji tea houses;
-  pineapple cake → Osaka bakeries. Good.
+Entity names returned by Qloo are deliberately not listed here (no Qloo response content in this repository).
+
+Rules agent, no LLM:
+- Brand advisor, 6 "should have data" scenarios: all produced cited reports. Category proxies return real
+  same-category venues in Taipei, and the Japanese cities have matching venues of the same kind (bubble tea
+  shops in Tokyo/Osaka, tea houses in Kyoto, bakeries in Osaka). Good.
 - City fit: all six cities return 10 matching places; scores differ by only 0.01–0.05, so the app labels a
   small gap a "close call" instead of claiming a clear winner. Thin as a differentiator.
-- Culture neighbours: real Japanese results, but popularity-biased — the same few names (中島美嘉, 小池徹平,
-  "Last Letter", "The Makanai") appear for many inputs. Medium.
-- Brands with Japan as a key market: plausible but generic (luxury / K-beauty). Thin.
+- Culture neighbours: real Japanese results, but popularity-biased: the same few well-known artists, films and
+  shows appear for many different inputs. Medium.
+- Brands with Japan as a key market: plausible but generic (luxury and beauty brands dominate). Thin.
 - Demographics: available for most venue proxies; often a weak skew. Medium.
-- Compare: useful only venue-to-venue (e.g. "Bubble Tea Store, Jasmine Tea, Layered, Sweet"). Medium.
+- Compare: useful only venue-to-venue (shared drink, cuisine and atmosphere tags). Medium.
 - Honesty cases: "holographic smart socks" → no proxies → insufficient; "millet wine" → 2 obscure venues
-  (popularity 0.44) → insufficient. Live eval 8/8.
-- Taste Bridge: 周杰倫 / 五月天 / 海角七號 (Cape No. 7) / 想見你 (Someday or One Day) resolve to the right
-  entities. Food words (牛肉麵, 夜市) only match venue names, so 夜市 resolves to an unrelated guesthouse — thin.
+  (popularity 0.44) → insufficient.
+- Taste Bridge: Chinese names of a Mandopop singer, a Taiwanese band and two Taiwanese films resolve to the
+  right entities (directly or via their English titles). Food words (牛肉麵, 夜市) only match venue names, so the
+  agent reports them as not found rather than forcing an unrelated venue.
+
+Claude agent (Sonnet 5.5, tool use) on the same 8 scenarios — what the evaluation found and what was changed:
+- The model was told the data coverage after every tool result. Early in a run (proxies found, nothing measured
+  yet) code reported "insufficient", so the model stopped after one turn on 4 of 6 good scenarios. Fix: the
+  coverage note is sent once per turn and has explicit early states ("no_proxies_yet",
+  "proxies_found_measure_next").
+- On "millet wine" the model broadened the keyword to "bar" / "brewery", found popular generic venues, and the
+  thin-data case turned into a confident answer (its own summary still said the proxies were imperfect). Fix:
+  category keywords must name the product (the input's keywords, else its category words); off-product keywords
+  are refused before any Qloo call.
+- The model sometimes fetched places for the runner-up city last, so the map showed a different city from the
+  top-ranked one. Fix: every city the agent inspected is kept; the report leads with the top-ranked city and
+  lets the reader switch.
+- After the fixes: 8/8 pass, 100% citation coverage, no invented evidence IDs, both thin-data cases refuse,
+  6/6 recommended cities match Qloo's ranking (or a tie with it). The model chose every Qloo call in all 8 runs.
