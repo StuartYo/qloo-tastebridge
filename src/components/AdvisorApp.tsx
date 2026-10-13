@@ -7,6 +7,7 @@ import { CompareColumns, EvidenceChips, EvidencePanel } from "./Evidence";
 import { MockTag } from "./ModeBanner";
 import { RunMeta } from "./RunMeta";
 import { BRAND_SCENARIOS, DEMO_BRANDS } from "@/lib/demos";
+import { displayName } from "@/lib/culture";
 import type { AnalysisBody } from "@/lib/analyze";
 import type { BrandInput, BrandReport, EntityKind } from "@/lib/types";
 
@@ -65,11 +66,13 @@ export function AdvisorApp() {
           <input className="mt-1 w-full rounded-md border border-stone-300 px-3 py-2" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Price point, customers, signature product" maxLength={500} />
         </label>
         <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <span className="self-center text-xs text-stone-500">Try a sample (fictional) brand:</span>
-            {DEMO_BRANDS.map(b => (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-stone-800">Try a sample brand<span className="font-normal text-stone-500"> (fictional, loads instantly):</span></span>
+            {DEMO_BRANDS.map((b, i) => (
               <button key={b.id} type="button" disabled={loading} onClick={() => { const input = { name: b.name, category: b.category, description: b.description, keywords: b.keywords }; setForm(input); run(input); }}
-                className="rounded-full border border-stone-300 px-3 py-1 text-xs hover:border-accent hover:text-accent disabled:opacity-50">{b.name} · {b.category}</button>
+                className={i === 0
+                  ? "flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                  : "rounded-full border border-stone-300 px-3 py-1 text-xs hover:border-accent hover:text-accent disabled:opacity-50"}>{i === 0 && <Sparkles className="size-3.5" aria-hidden />}{b.name} · {b.category}</button>
             ))}
           </div>
           <button type="submit" disabled={loading || !form.name || !form.category} className="flex items-center justify-center gap-2 rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
@@ -196,7 +199,7 @@ function Conclusion({ r }: { r: BrandReport }) {
   for (const p of top) if (p.city) counts.set(p.city, (counts.get(p.city) ?? 0) + 1);
   const district = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const venues = top.filter(p => !district || p.city === district).slice(0, 2).map(p => p.name);
-  const culture = [...(r.neighbors.artist ?? []).slice(0, 2), ...(r.neighbors.movie ?? []).slice(0, 1)].map(x => x.name);
+  const culture = [...(r.neighbors.artist ?? []).slice(0, 2), ...(r.neighbors.movie ?? []).slice(0, 1)].map(displayName);
   const age = r.audience ? Object.entries(r.audience.age).sort((a, b) => b[1] - a[1])[0] : undefined;
   const rows: { label: string; value: string }[] = [
     ...(district || venues.length ? [{ label: `Where in ${view.city ?? c1?.name}`, value: `${district ?? ""}${district && venues.length ? ": " : ""}${venues.join(", ")}` }] : []),
@@ -217,6 +220,7 @@ function Conclusion({ r }: { r: BrandReport }) {
         ))}
       </dl>
       <p className="mt-3 text-xs text-stone-500">From Qloo data: venues, Japanese culture and audience that people with the same taste as the brand&apos;s comparable customers tend to like. Details and evidence below.</p>
+      <p className="mt-1 text-xs text-stone-500">Limits: Japanese acts only (names Qloo describes as from another country, such as Korean or Taiwanese acts popular in Japan, are left out); the culture list is popularity-biased and the same names recur across brands.</p>
     </section>
   );
 }

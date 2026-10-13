@@ -61,6 +61,8 @@ Qloo client (src/lib/qloo.ts)
    mock → src/lib/qloo-mock.ts (labelled demo data)
 ```
 
+Tools: Brand Advisor gives Claude **7 Qloo-backed tools + `submit_report`** (listed above). Taste Bridge reuses `search_entities` and `japan_taste_neighbors`, adds `osaka_places`, and finishes with `submit_picks`.
+
 Models (`src/lib/llm.ts`): the agent loop and the "LLM only" column use **Claude Sonnet 5.5** (`TASTEBRIDGE_MODEL`, without extended thinking, effort `medium`); the Taste Bridge explanations use **Claude Haiku 5.5** (`TASTEBRIDGE_SMALL_MODEL`) with structured JSON output. The tool definitions and system prompt are a fixed, cached prefix, and the growing conversation is cached between loop turns (about 70% of prompt tokens are cache reads in a brand analysis).
 
 Taste Bridge explanations are checked by code: a line is kept only if it mentions a favourite, one of the pick's Qloo tags or its affinity, and makes no individual prediction ("you will love…"); otherwise a rule-built line from the shared tags is shown.
@@ -80,7 +82,7 @@ The hackathon kit (`@qloo/qloo-harness`) describes six validated workflows. Tast
 | `compare_tastes` | `GET /v2/analysis/compare` | Compare audiences |
 | Taste Bridge `osaka_places` | `GET /v2/insights` place, 5 km around Osaka | Discover recommendations; geographic popularity |
 
-Parameter choices were checked against the live API; details and what did *not* work: [`docs/qloo-api-notes.md`](docs/qloo-api-notes.md). A typical brand analysis makes ~21 Qloo calls (~25–35 s live with the LLM, instant when cached).
+Parameter choices were checked against the live API; details and what did *not* work: [`docs/qloo-api-notes.md`](docs/qloo-api-notes.md). A typical brand analysis makes about 21 Qloo calls (~25–35 s live with the LLM, instant when cached).
 
 ## Evaluation (live, 2026-10-13)
 
@@ -93,13 +95,13 @@ Parameter choices were checked against the live API; details and what did *not* 
 | Honest on thin data ("millet wine", "holographic smart socks") | 2 / 2 refuse: no city, no audience, "not enough Qloo data" |
 | City choice | 6 / 6 recommend Qloo's top-ranked city (or one tied with it) |
 | Qloo calls chosen by the model | 100% (the coverage check did not need to add any) |
-| Average Claude cost per analysis | US$0.051 (brand analyses with enough data: US$0.062; thin-data cases stop early at about US$0.02) |
+| Claude cost | About US$0.06 per brand analysis (US$0.051–0.059, average 0.056); US$0.047 average across all eight scenarios (thin-data cases stop early at about US$0.02) |
 
 The first live run failed 4 scenarios; what was wrong and how it was fixed is in [`docs/qloo-api-notes.md`](docs/qloo-api-notes.md#data-quality-observations-2026-10-13).
 
 ## Cost protection for the public demo
 
-Measured from token usage at list prices: about **US$0.05 per analysis on average** (the Evaluation tab's figure). A brand analysis with enough data costs about US$0.06 (agent loop + "LLM only" column, 6 Claude calls), a thin-data brand about US$0.02 (the agent stops early), and a Taste Bridge query about US$0.03.
+Measured from token usage at list prices (the Evaluation tab's figures): **about US$0.06 per brand analysis** (US$0.051–0.059, average 0.056; agent loop + "LLM only" column, 6 Claude calls), and **US$0.047 average across all eight scenarios**, because a thin-data brand stops early at about US$0.02. A Taste Bridge query costs about US$0.03.
 
 - **Pre-generated presets.** The 8 evaluation brands and the Taste Bridge examples are pre-generated with the real agent (`npm run showcase:build`), so judges see full results instantly and at no cost.
 - **Answer cache** keyed by normalized input (case, spacing, keyword order).
@@ -121,7 +123,7 @@ npm run dev                  # http://localhost:3000
 Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
 
 With keys:
-- `npm run showcase:build`: run all presets with Claude + live Qloo, score the evaluation set, write `.data/showcase.json` (`ONLY="pearl|周杰倫"` rebuilds a subset). Full run ≈ US$0.55.
+- `npm run showcase:build`: run all presets with Claude + live Qloo, score the evaluation set, write `.data/showcase.json` (`ONLY="pearl|周杰倫"` rebuilds a subset). Full run ≈ US$0.5.
 - `npm run eval:live`: the evaluation set with the rules-based agent on live Qloo (no LLM cost).
 - `npm run probe:live`: data-quality summary for every demo input.
 - `npm run snapshots:record`: warm the private Qloo cache (`.cache/qloo/`, git-ignored).
@@ -136,6 +138,8 @@ Submission checklist: [`docs/SUBMISSION-CHECKLIST.md`](docs/SUBMISSION-CHECKLIST
 - Qloo coverage of Japanese venues and Taiwanese entities is not guaranteed in the hackathon environment; that is why data coverage and confidence are first-class outputs.
 - City fit is category-specific only when Qloo has a place tag for the brand's category (bubble tea, tea store, bakery, gift shop...). Otherwise the city score is the overall taste affinity of the brand's audience, not category-specific, and the UI says so. The top two cities are often within 0.03; that is reported as a close call and the city recommendation is capped at medium confidence.
 - Japanese culture neighbours are popularity-biased: the same well-known names recur across different inputs.
+- Qloo's Japan filters for music are genre tags ("Japanese", "J-Pop") that also match Korean and Taiwanese acts popular in Japan. Qloo has no nationality field, so the app drops artists, films and shows whose Qloo description names another country (e.g. 東方神起, described as a South Korean duo) and keeps entities without a description; the evidence panel lists what was left out. Names in Japanese script are shown with the English name from Qloo's description, e.g. "Mika Nakashima (中島美嘉)".
+- Taste Bridge Osaka places: venues sharing Qloo tags with the favourites come first; stations, hotels and venues themed on another country (e.g. an Australian pub) sink to the end unless they share a tag.
 - "Brands" means brands Qloo lists with Japan as a key market, not Japanese-owned brands.
 - Food words typed in Chinese (牛肉麵, 夜市) usually have no Qloo entity; they are reported as not found.
 - Audience and affinity numbers describe taste correlation, not sales forecasts or any individual's preferences.

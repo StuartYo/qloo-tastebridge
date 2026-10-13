@@ -113,3 +113,20 @@ Claude agent (Sonnet 5.5, tool use) on the same 8 scenarios: what the evaluation
 - **Taste Bridge brands.** Brand neighbours that share no tag with the favourites (global luxury labels and
   airlines, linked to almost any audience) are hidden and named in a note; other picks are ranked with
   tag-sharing items first.
+
+## Final review round (2026-10-13, night)
+
+- **Non-Japanese acts in "Japanese music".** The music Japan filter is a set of genre tags ("Japanese",
+  "J-Pop"), and Qloo applies them to Korean and Taiwanese acts popular in Japan (東方神起 / TVXQ, 陳建騏,
+  宇宙人 / Cosmos People). Qloo returns no nationality field, so code reads the first sentence of each entity's
+  Qloo description: if it names another country or scene ("South Korean", "Taiwanese", "Mandopop", "American")
+  and does not say "Japanese", the entity is left out of the artist / film / TV lists (`src/lib/culture.ts`).
+  The evidence row names what was left out. Entities without a description are kept.
+- **Display names.** Japanese-script names are shown as "English (日本語)", with the English name taken from
+  the Qloo description ("Mika Nakashima (中島美嘉)").
+- **Taste Bridge Osaka places.** The 12 places Qloo returns are re-ranked: venues sharing a Qloo tag with the
+  favourites first, then the rest in Qloo's order, and stations, hotels/hostels (by name or a lodging tag) and
+  venues themed on another country (by name or a cuisine/venue tag, e.g. an Australian pub) last unless they
+  share a tag. Claude sees the list in that order.
+- **Sample brand description** no longer states an age ("young urban customers"): the Qloo audience for the
+  bubble tea proxies leans 35–44, and the description was steering the "LLM only" column.

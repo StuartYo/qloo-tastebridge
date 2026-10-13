@@ -9,7 +9,7 @@ export interface BrandScenario extends BrandInput {
 }
 
 export const BRAND_SCENARIOS: BrandScenario[] = [
-  { id: "pearl", demo: true, name: "Formosa Pearl", category: "Bubble tea chain", keywords: ["bubble tea", "milk tea"], description: "Mid-priced Taiwanese bubble tea chain, 60 stores in Taiwan, young urban customers.", expect: { sufficient: true, topCityIn: ["Osaka", "Tokyo", "Fukuoka"] } },
+  { id: "pearl", demo: true, name: "Formosa Pearl", category: "Bubble tea chain", keywords: ["bubble tea", "milk tea"], description: "Mid-priced Taiwanese bubble tea chain, 60 stores in Taiwan, known for brown-sugar pearl milk tea.", expect: { sufficient: true, topCityIn: ["Osaka", "Tokyo", "Fukuoka"] } },
   { id: "goods", demo: true, name: "Island Goods Co.", category: "Indie lifestyle select shop", keywords: ["gift shop", "home goods store"], description: "Curated Taiwanese design objects, stationery and homeware.", expect: { sufficient: true, topCityIn: ["Osaka", "Tokyo", "Fukuoka"] } },
   { id: "leaf", demo: true, name: "Alishan Leaf", category: "High-mountain oolong tea brand", keywords: ["tea store", "oolong"], description: "Premium loose-leaf oolong and gift boxes.", expect: { sufficient: true, topCityIn: ["Kyoto", "Osaka", "Tokyo"] } },
   { id: "pineapple", name: "Sunny Pineapple Bakery", category: "Pineapple cake bakery", keywords: ["pineapple cake", "bakery"], expect: { sufficient: true } },

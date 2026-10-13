@@ -1,3 +1,4 @@
+import { displayName } from "@/lib/culture";
 import type { AudienceProfile, CityFit, Confidence, Entity } from "@/lib/types";
 
 const AGE_LABEL: Record<string, string> = { "24_and_younger": "<25", "25_to_29": "25–29", "30_to_34": "30–34", "35_to_44": "35–44", "45_to_54": "45–54", "55_and_older": "55+" };
@@ -29,7 +30,7 @@ export function AffinityBars({ items, max = 6 }: { items: Entity[]; max?: number
     <ul className="space-y-1.5">
       {items.slice(0, max).map(x => (
         <li key={x.id} className="grid grid-cols-[minmax(0,1fr)_5rem_2.5rem] items-center gap-2 text-sm">
-          <span className="truncate" title={x.name}>{x.name}</span>
+          <span className="truncate" title={displayName(x)}>{displayName(x)}</span>
           <div className="h-2 rounded bg-stone-100"><div className="h-2 rounded bg-accent" style={{ width: `${Math.round((x.affinity ?? 0) * 100)}%` }} /></div>
           <span className="text-right text-xs tabular-nums text-stone-500">{x.affinity?.toFixed(2) ?? "n/a"}</span>
         </li>

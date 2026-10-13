@@ -8,6 +8,7 @@ import { MockTag } from "./ModeBanner";
 import { RunMeta } from "./RunMeta";
 import type { AnalysisBody } from "@/lib/analyze";
 import { BRIDGE_EXAMPLES } from "@/lib/demos";
+import { displayName } from "@/lib/culture";
 import type { BridgeReport, EntityKind } from "@/lib/types";
 
 const TasteMap = dynamic(() => import("./TasteMap"), { ssr: false, loading: () => <div className="h-72 animate-pulse rounded-lg bg-stone-100 sm:h-96" /> });
@@ -65,14 +66,14 @@ export function BridgeApp() {
 function Result({ body, onPick, highlight }: { body: AnalysisBody<BridgeReport>; onPick: (id: string) => void; highlight: string | null }) {
   const { report: r, baseline } = body;
   const mock = r.qlooMode === "mock";
-  const markers = useMemo(() => r.places.filter(p => p.entity.lat !== undefined).map(p => ({ lat: p.entity.lat!, lon: p.entity.lon!, label: p.entity.name, sub: p.why })), [r.places]);
+  const markers = useMemo(() => r.places.filter(p => p.entity.lat !== undefined).map(p => ({ lat: p.entity.lat!, lon: p.entity.lon!, label: displayName(p.entity), sub: p.why })), [r.places]);
   const all = CATS.flatMap(c => r.picks[c.kind] ?? []).map(p => p.entity).sort((a, b) => (b.affinity ?? 0) - (a.affinity ?? 0));
 
-  const first = (k: EntityKind) => r.picks[k]?.[0]?.entity.name;
+  const first = (k: EntityKind) => { const e = r.picks[k]?.[0]?.entity; return e && displayName(e); };
   const topPlace = r.places[0]?.entity;
   const glance = [
     { label: "Music", value: first("artist") }, { label: "Film", value: first("movie") }, { label: "TV", value: first("tv_show") },
-    { label: "Osaka", value: topPlace?.name },
+    { label: "Osaka", value: topPlace && displayName(topPlace) },
   ].filter((x): x is { label: string; value: string } => !!x.value);
 
   return (
@@ -90,7 +91,7 @@ function Result({ body, onPick, highlight }: { body: AnalysisBody<BridgeReport>;
       <section className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
         <p>{r.summary} <MockTag show={mock} /></p>
         <p className="mt-1 text-xs text-stone-500">{r.explanations === "claude"
-          ? "The “why” lines are written by Claude from the Qloo tags and affinity shown, then checked by code: a line that cites nothing from the data is replaced by a rule-built one."
+          ? "The “why” lines are written by Claude from the Qloo tags and affinity shown, then checked by code: a line that cites nothing from the data, or a pick without a Claude line, gets a rule-built line from the shared tags."
           : `${r.llmNote ?? "AI explanation needs an LLM key."} The “why” lines below are built by rules from shared Qloo tags and affinity scores.`}</p>
         {r.unmatched.length > 0 && <p className="mt-1 text-xs text-amber-800">Not found in Qloo: {r.unmatched.join(", ")}</p>}
         <div className="mt-3 border-t border-stone-100 pt-2"><RunMeta body={body} calls={r.evidence.length} agentCalls={r.evidence.filter(e => e.origin === "agent").length} /></div>
@@ -105,7 +106,7 @@ function Result({ body, onPick, highlight }: { body: AnalysisBody<BridgeReport>;
                 <ul className="space-y-2">
                   {(r.picks[kind] ?? []).map(p => (
                     <li key={p.entity.id} className="text-sm">
-                      <div className="flex items-baseline justify-between gap-2"><span className="font-medium">{p.entity.name}</span><span className="text-xs tabular-nums text-stone-500">{p.entity.affinity?.toFixed(2)}</span></div>
+                      <div className="flex items-baseline justify-between gap-2"><span className="font-medium">{displayName(p.entity)}</span><span className="text-xs tabular-nums text-stone-500">{p.entity.affinity?.toFixed(2)}</span></div>
                       <p className="text-xs text-stone-600">{p.why}</p>
                       <div className="mt-1"><EvidenceChips ids={p.evidence} onPick={onPick} /></div>
                     </li>
@@ -122,13 +123,13 @@ function Result({ body, onPick, highlight }: { body: AnalysisBody<BridgeReport>;
             <section className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
               <h2 className="mb-3 flex items-center gap-2 font-semibold"><MapPin className="size-4 text-accent" aria-hidden />Osaka places for your taste <MockTag show={mock} /></h2>
               <TasteMap center={OSAKA} markers={markers} />
-              <ol className="mt-3 space-y-1 text-sm">{r.places.map((p, i) => <li key={p.entity.id}><span className="font-mono text-xs text-stone-500">{i + 1}.</span> <span className="font-medium">{p.entity.name}</span> <span className="text-xs text-stone-500">{p.why}</span></li>)}</ol>
+              <ol className="mt-3 space-y-1 text-sm">{r.places.map((p, i) => <li key={p.entity.id}><span className="font-mono text-xs text-stone-500">{i + 1}.</span> <span className="font-medium">{displayName(p.entity)}</span> <span className="text-xs text-stone-500">{p.why}</span></li>)}</ol>
             </section>
           )}
         </>
       )}
       <CompareColumns plain={baseline} mock={mock} qlooLabel={r.llm === "claude" ? "Same model + Qloo tools (this agent)" : "Qloo + rules (this agent, no LLM)"}
-        withQloo={CATS.flatMap(c => (r.picks[c.kind] ?? []).slice(0, 1)).concat(r.places.slice(0, 1)).map(p => ({ title: p.entity.name, detail: p.why, badge: <EvidenceChips ids={p.evidence} onPick={onPick} /> }))} />
+        withQloo={CATS.flatMap(c => (r.picks[c.kind] ?? []).slice(0, 1)).concat(r.places.slice(0, 1)).map(p => ({ title: displayName(p.entity), detail: p.why, badge: <EvidenceChips ids={p.evidence} onPick={onPick} /> }))} />
       <EvidencePanel evidence={r.evidence} highlight={highlight} />
     </div>
   );

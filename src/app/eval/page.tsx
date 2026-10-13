@@ -31,6 +31,10 @@ export default async function EvalPage() {
   const thin = rows.filter(r => !r.expectedSufficient);
   const withCity = rows.filter(r => r.cityAgrees !== null);
   const costs = rows.map(r => r.usd).filter((v): v is number => v !== null);
+  // Brand analyses with enough data (the full agent loop) vs. the all-scenario average, which includes thin cases that stop early.
+  const full = rows.filter(r => r.expectedSufficient && r.usd !== null).map(r => r.usd!);
+  const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+  const range = full.length ? `about US$${avg(full).toFixed(2)} per brand analysis (range ${Math.min(...full).toFixed(3)}–${Math.max(...full).toFixed(3)}, average ${avg(full).toFixed(3)})` : "";
   const calls = rows.reduce((s, r) => s + r.calls, 0), agentCalls = rows.reduce((s, r) => s + r.agentCalls, 0);
 
   return (
@@ -49,7 +53,7 @@ export default async function EvalPage() {
         <Stat label="Honest on thin data" value={`${thin.filter(r => r.honest).length} / ${thin.length}`} note="said 'not enough data', no city" />
         <Stat label="City choice" value={`${withCity.filter(r => r.cityAgrees).length} / ${withCity.length}`} note="recommended city matches Qloo ranking" />
         {live && <Stat label="Agent-chosen Qloo calls" value={pct(agentCalls / Math.max(1, calls))} note="rest auto-filled by coverage check" />}
-        {live && costs.length > 0 && <Stat label="Claude cost per analysis" value={`$${(costs.reduce((a, b) => a + b, 0) / costs.length).toFixed(3)}`} note="agent loop + LLM-only baseline" />}
+        {live && costs.length > 0 && <Stat label="Claude cost, all scenarios" value={`US$${avg(costs).toFixed(3)}`} note={`average across all ${costs.length}; ${range}`} />}
       </div>
 
       {/* Phones: one card per scenario instead of a wide table. */}

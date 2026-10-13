@@ -18,7 +18,7 @@ The kit also says judges should consider usefulness, technical execution, proven
 | Criterion | Evidence in the project |
 |---|---|
 | Usefulness | Brand Advisor answers a real pre-launch question (city, audience, cultural hooks, pop-up spots); Taste Bridge for people moving to Osaka |
-| Technical execution | Claude tool-use loop over 8 Qloo-backed tools; confidence computed in code; prompt caching; tests (`npm test`), live evaluation 8/8; city fit scored on same-category venues |
+| Technical execution | Claude tool-use loop: Brand Advisor has 7 Qloo-backed tools + `submit_report` (Taste Bridge reuses `search_entities` and `japan_taste_neighbors`, adds `osaka_places`, and finishes with `submit_picks`); confidence computed in code; prompt caching; tests (`npm test`), live evaluation 8/8; city fit scored on same-category venues |
 | Provenance and user clarity | Every recommendation cites evidence IDs and its confidence is capped by code rules shown under the pill; the "What Qloo provided" panel lists each call with parameters and whether the agent chose it; "LLM only" column for contrast; mock and cached data are labelled |
 | Responsible data handling | Keys server-side only; e-mails, phone numbers and URLs stripped before Qloo; no Qloo data in the repo; results described as group tendencies; thin data → refusal |
 | Reproducibility | `npm run showcase:build` re-runs the evaluation; `npm run eval:live` runs it without LLM cost; Qloo parameters documented in `docs/qloo-api-notes.md` |
